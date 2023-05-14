@@ -1,50 +1,57 @@
-var mongoose = require("mongoose");
-var uniqueValidator = require("mongoose-unique-validator");
-var slug = require("slug");
-var User = mongoose.model("User");
+var mongoose = require('mongoose');
+var uniqueValidator = require('mongoose-unique-validator');
+var slug = require('slug');
+var User = mongoose.model('User');
+var { getImageUrl } = require('../lib/ai');
 
 var ItemSchema = new mongoose.Schema(
   {
     slug: { type: String, lowercase: true, unique: true },
-    title: {type: String, required: [true, "can't be blank"]},
-    description: {type: String, required: [true, "can't be blank"]},
+    title: { type: String, required: [true, "can't be blank"] },
+    description: { type: String, required: [true, "can't be blank"] },
     image: String,
     favoritesCount: { type: Number, default: 0 },
-    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
+    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
     tagList: [{ type: String }],
-    seller: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
 
-ItemSchema.plugin(uniqueValidator, { message: "is already taken" });
+ItemSchema.plugin(uniqueValidator, { message: 'is already taken' });
 
-ItemSchema.pre("validate", function(next) {
+ItemSchema.pre('validate', async function () {
   if (!this.slug) {
-    this.slugify();
+    await this.slugify();
   }
 
-  next();
+  if (!this.image) {
+    await this.setAutoImage();
+  }
 });
 
-ItemSchema.methods.slugify = function() {
+ItemSchema.methods.slugify = function () {
   this.slug =
     slug(this.title) +
-    "-" +
+    '-' +
     ((Math.random() * Math.pow(36, 6)) | 0).toString(36);
 };
 
-ItemSchema.methods.updateFavoriteCount = function() {
+ItemSchema.methods.setAutoImage = async function () {
+  this.image = await getImageUrl(this.title);
+};
+
+ItemSchema.methods.updateFavoriteCount = function () {
   var item = this;
 
-  return User.count({ favorites: { $in: [item._id] } }).then(function(count) {
+  return User.count({ favorites: { $in: [item._id] } }).then(function (count) {
     item.favoritesCount = count;
 
     return item.save();
   });
 };
 
-ItemSchema.methods.toJSONFor = function(user) {
+ItemSchema.methods.toJSONFor = function (user) {
   return {
     slug: this.slug,
     title: this.title,
@@ -55,8 +62,8 @@ ItemSchema.methods.toJSONFor = function(user) {
     tagList: this.tagList,
     favorited: user ? user.isFavorite(this._id) : false,
     favoritesCount: this.favoritesCount,
-    seller: this.seller.toProfileJSONFor(user)
+    seller: this.seller.toProfileJSONFor(user),
   };
 };
 
-mongoose.model("Item", ItemSchema);
+mongoose.model('Item', ItemSchema);
