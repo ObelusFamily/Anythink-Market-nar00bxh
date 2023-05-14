@@ -20,16 +20,14 @@ var ItemSchema = new mongoose.Schema(
 
 ItemSchema.plugin(uniqueValidator, { message: 'is already taken' });
 
-ItemSchema.pre('validate', function (next) {
+ItemSchema.pre('validate', async function () {
   if (!this.slug) {
-    this.slugify();
+    await this.slugify();
   }
 
   if (!this.image) {
-    this.setAutoImage();
+    await this.setAutoImage();
   }
-
-  next();
 });
 
 ItemSchema.methods.slugify = function () {
@@ -39,8 +37,8 @@ ItemSchema.methods.slugify = function () {
     ((Math.random() * Math.pow(36, 6)) | 0).toString(36);
 };
 
-ItemSchema.methods.setAutoImage = function () {
-  this.image = getImageUrl(this.title);
+ItemSchema.methods.setAutoImage = async function () {
+  this.image = await getImageUrl(this.title);
 };
 
 ItemSchema.methods.updateFavoriteCount = function () {
